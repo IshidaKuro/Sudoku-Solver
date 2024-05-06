@@ -1,25 +1,91 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Media.TextFormatting;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
+///<ToDo>
+///
+///     Add bold lines between boxes
+///     sanitize input
+///     implement more solve functions
+///</ToDo>
 
-
+/// <SUDOKU_RULES>
+/// 
+///  -----   Last Free Cell  -----
+///  
+///     If there is only 1 free cell in a section, there can only be one number that can go there
+/// 
+///  ****-----   Last Remaining Cell  -----****
+///  
+///     Numbers cannot be repeated in a given section. If there is only one square to place a number, the number must go there 
+///     
+///  ****-----   Last Possible Number  -----****
+///  
+///     If only 1 number can go in a cell, then the number must be placed there
+/// 
+///  ****-----   Obvious Singles  -----****
+/// 
+/// 
+/// 
+///  ****-----   Obvious Pairs  -----****
+/// 
+///     The point is that you should find 2 cells with the same pairs of Possibilities within a section.
+///     This means that these pairs of Possibilities cannot be used in other cells within this section.
+///     Hence, we remove them from other squares' possibilities. 
+/// 
+/// 
+/// ****-----   Obvious Triples  -----****
+/// 
+///     This means that these cells have number 1, 5 & 8 in them but we don't know yet where each number is exactly.
+///     What we know though, is that 1, 5 & 8 can't be in other cells of this block. So, we can remove them from the notes.
+/// 
+///  ****-----   Hidden Singles  -----****
+/// 
+///     {SEE LAST REMAINING CELL}
+/// 
+///  ****-----   Hidden Pairs  -----****
+/// 
+///     If you can find two cells within a row, column, or 3x3 block where two possibilities appear nowhere outside these cells,
+///     these two possibilities must be placed in the two cells. All other Notes can be eliminated from these two cells.
+/// 
+///  ****-----   Hidden Triples  -----****
+/// 
+///     "Hidden triples" technique is very similar to "Hidden pairs" and works on the same concept.
+///     "Hidden triples" applies when three cells in a row, column, or 3x3 block contain the same three Notes. These three cells also contain other candidates, which may be removed from them.
+///     It will be easier to understand this technique if you look at the example.
+///     For Example, there are only three cells, which contain repeated numbers: 5, 6 and 7. This means each of these numbers must occupy one of these cells. And any other numbers cannot be found here.
+///     If so, 5,6 and 7 cannot be presented in any other cell of this 3x3 block as well.
+/// 
+///  ****-----   Pointing Pairs  -----****
+/// "Pointing pairs" applies when a Note is present twice in a block and this Note also belongs to the same row or column. This means that the Note must be the solution for one of the two cells in the block. So, you can eliminate this Note from any other cells in the row or column.
+/// To understand "Pointing pairs" better, let's take a look at the example.
+/// Let's look at the block at the top left corner. All the cells that might contain number 4 are located in one column. As number 4 should appear in this block at least once, one of the highlighted cells will surely contain 4.
+/// 
+/// 
+///  ****-----   Pointing Triples  -----****
+/// 
+/// "Pointing triples" technique is very similar to "Pointing pairs". It applies if a Note is present in only three cells of a 3x3 block and also belongs to the same row or column. This means that the Note must be a solution for one of these three cells in the block. So, obviously it can't be a solution of any other cell in the row or column and can be eliminated from them.
+/// For example:
+/// Let's take a look at the bottom right corner. 
+/// In this block all the cells that might contain number 1 are located in one row. As number 1 must appear in the bottom right block at least once, one of the highlighted cells will surely contain 1.
+/// After this conclusion all other possible numbers 1 can be safely deleted from the Notes of this row to avoid confusion. 
+/// Remember that you can do the same trick for blocks, rows, and columns.
+/// 
+///  ****-----   X Wing  -----****
+/// 
+/// 
+/// 
+///  ****-----   Y Wing  -----****
+/// 
+/// 
+/// 
+///  ****-----   Swordfish  -----****
+/// 
+/// 
+/// 
+/// </SUDOKU_RULES>
 class Square
 {
     public TextBox tb;
@@ -121,15 +187,17 @@ class Section
     {
         squares.Add(square);
     }
-    public void ScanForPairs()
+
+    //scans for obvious pairs and updates the board accordingly
+       public void ScanForPairs()
     {
         foreach(Square s in this.squares) //for each square in this section
         {
             if (!s.set && s.possibilities.Count ==2) //if only 2 things can go here
             {
-                foreach(Square q in this.squares)
+                foreach(Square q in this.squares) //look at the other squares
                 {
-                    if(!q.set && s!=q && s.possibilities.Equals(q.possibilities))
+                    if(!q.set && s!=q && s.possibilities.Equals(q.possibilities)) //if they both have the same possible solutions
                     {
                         foreach(Square u in this.squares)
                         {
@@ -137,7 +205,7 @@ class Section
                             {
                                 foreach (int i in s.possibilities)
                                 {
-                                    u.possibilities.Remove(i);
+                                    u.possibilities.Remove(i); //remove the possible numbers from the solutions list
                                 }
                             }
                         }
@@ -181,10 +249,11 @@ class Section
         }
     }
 
+    
     public void ScanForOnlySection(Section[] sections)
     {
         //if a number has to go on one line within a square, trim possibilities from the square excluding the line the number has to go in
-        //or if a number has to go within a square on a line, trim possibilities from the line   ''      ''      ''      ''      ''      ''
+        //or if a number has to go within a square on a line, trim possibilities from the line
 
         //for each possibility
         for (int i = 1; i < 10; i++)
@@ -272,6 +341,9 @@ class Section
     }
 
 
+
+
+
 }
 
 
@@ -280,12 +352,10 @@ namespace Sudoku_Solver
     
     public partial class MainWindow : Window
     {
-
-
         Square[,] grid = new Square[9, 9];
-
         Section[] Sections = new Section[27];
        
+
         public MainWindow()
         {
             InitializeComponent();
@@ -306,6 +376,7 @@ namespace Sudoku_Solver
                     Square s = new Square(x, y);
                     TextBox t = s.tb;
                     t.FontSize = 32;
+                    
                     Grid.SetRow(t, x);
                     Grid.SetColumn(t, y);
                     tbGrid.Children.Add(t);
@@ -321,7 +392,7 @@ namespace Sudoku_Solver
             }
         }
 
-       
+       //when the SOLVE button is pressed
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             
@@ -394,12 +465,8 @@ namespace Sudoku_Solver
             
 
         }
-        protected void textBoxChanged(object sender, TextChangedEventArgs args)
-        {
-            //clear the text box if the character is not an integer
-            
-        }
 
+        //button to clear possibilitites
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             foreach (Square square in grid)
@@ -413,6 +480,7 @@ namespace Sudoku_Solver
 
         }
 
+        //debug function to show which sections a text box is in
         private void Button_Click_2(object sender, RoutedEventArgs e)
         {
             foreach(Square square in grid)

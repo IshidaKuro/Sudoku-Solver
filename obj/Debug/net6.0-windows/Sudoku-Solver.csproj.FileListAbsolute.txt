@@ -18,3 +18,4 @@ C:\Users\Lewis\source\repos\Sudoku-Solver\obj\Debug\net6.0-windows\refint\Sudoku
 C:\Users\Lewis\source\repos\Sudoku-Solver\obj\Debug\net6.0-windows\Sudoku-Solver.pdb
 C:\Users\Lewis\source\repos\Sudoku-Solver\obj\Debug\net6.0-windows\Sudoku-Solver.genruntimeconfig.cache
 C:\Users\Lewis\source\repos\Sudoku-Solver\obj\Debug\net6.0-windows\ref\Sudoku-Solver.dll
+C:\Users\Lewis\source\repos\Sudoku-Solver\obj\Debug\net6.0-windows\Sudoku-Solver.sourcelink.json
