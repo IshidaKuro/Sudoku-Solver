@@ -9,6 +9,7 @@ using System.Windows.Controls;
 ///     Add bold lines between boxes
 ///     sanitize input
 ///     implement more solve functions
+///     ensure that when we have a copied pair in boxes that they are being removed appropriately
 ///</ToDo>
 
 /// <SUDOKU_RULES>
@@ -175,8 +176,6 @@ class Square
 class Section
 {
     public List<Square> squares = new List<Square>();
-    
-    
 
     public Section(List<Square> squa)
     {
@@ -187,7 +186,6 @@ class Section
     {
         squares.Add(square);
     }
-
     //scans for obvious pairs and updates the board accordingly
        public void ScanForPairs()
     {
