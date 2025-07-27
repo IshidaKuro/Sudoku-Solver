@@ -204,9 +204,10 @@ class Section
         squares.Add(square);
     }
     //scans for obvious pairs and updates the board accordingly
-    public bool ScanForPairs(bool updated)
+    public bool ScanForPairs()
     {
-        foreach(Square s in this.squares) //for each square in this section
+        bool updated = false;
+        foreach (Square s in this.squares) //for each square in this section
         {
             if (!s.set && s.possibilities.Count ==2) //if only 2 things can go here
             {
@@ -235,8 +236,9 @@ class Section
 
 
     //scan each section to see if there is only 1 place a number can go
-    public bool ScanForOnlyPlace(bool updated)
+    public bool ScanForOnlyPlace()
     {
+        bool updated = false;
         for (int i = 1; i < 10; i++)
         {
             int count = 0;
@@ -268,8 +270,11 @@ class Section
     }
 
     
-    public bool ScanForOnlySection(Section[] sections, bool updated)
+    public bool ScanForOnlySection(Section[] sections)
     {
+
+        bool updated = false;
+
         //if a number has to go on one line within a square, trim possibilities from the square excluding the line the number has to go in
         //or if a number has to go within a square on a line, trim possibilities from the line
 
@@ -361,8 +366,9 @@ class Section
         return updated;
     }
 
-    public bool CheckForHiddenPairs(bool updated)
+    public bool CheckForHiddenPairs()
     {
+        bool updated = false;
         // Map from candidate number to list of squares where it appears
         Dictionary<int, List<Square>> positions = new Dictionary<int, List<Square>>();
 
@@ -405,8 +411,9 @@ class Section
         return updated;
     }
 
-    public bool CheckForPointingPairs(Section[] sections, bool updated)
+    public bool CheckForPointingPairs(Section[] sections)
     {
+        bool updated = false;
         for (int number = 1; number <= 9; number++)
         {
             var candidates = new List<Square>();
@@ -456,7 +463,49 @@ class Section
         return updated;
     }
 
+    public bool ScanForObviousTriples()
+    {
+        bool updated = false;
+        var candidates = squares.Where(s => !s.set && s.possibilities.Count <= 3).ToList();
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            for (int j = i + 1; j < candidates.Count; j++)
+            {
+                for (int k = j + 1; k < candidates.Count; k++)
+                {
+                    var combined = candidates[i].possibilities
+                        .Union(candidates[j].possibilities)
+                        .Union(candidates[k].possibilities)
+                        .ToList();
+
+                    if (combined.Count == 3)
+                    {
+                        var triple = combined;
+
+                        foreach (Square s in squares)
+                        {
+                            if (!new[] { candidates[i], candidates[j], candidates[k] }.Contains(s))
+                            {
+                                foreach (int val in triple)
+                                {
+                                    if (s.possibilities.Remove(val))
+                                        updated = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return updated;
+    }
+
+
 }
+
+
 
 namespace Sudoku_Solver
 {
@@ -474,35 +523,46 @@ namespace Sudoku_Solver
             for (int i = 0; i < Sections.Count(); i++)
             {
                 Sections[i] = new Section(new List<Square>());
-            }     
-            
-           //for each space on the board
-            for (int x = 0; x<9; x++)
+            }
+
+            for (int x = 0; x < 9; x++)
             {
-                for (int y = 0; y<9; y++)
+                for (int y = 0; y < 9; y++)
                 {
-                    //create a square and create a text box to represent it
                     Square s = new Square(x, y);
                     TextBox t = s.tb;
                     t.FontSize = 32;
-                    
-                    //place the text box in the window
-                    Grid.SetRow(t, x);
-                    Grid.SetColumn(t, y);
-                    tbGrid.Children.Add(t);
+
+                    // Create a Border to wrap the TextBox
+                    Border b = new Border();
+                    b.Child = t;
+
+                    // Determine thickness for sudoku-style borders
+                    Thickness thickness = new Thickness(
+                        left: y % 3 == 0 ? 3 : 1,
+                        top: x % 3 == 0 ? 3 : 1,
+                        right: y == 8 ? 3 : 1,
+                        bottom: x == 8 ? 3 : 1
+                    );
+                    b.BorderThickness = thickness;
+                    b.BorderBrush = Brushes.Black;
+
+                    Grid.SetRow(b, x);
+                    Grid.SetColumn(b, y);
+                    tbGrid.Children.Add(b);
+
                     grid[x, y] = s;
 
-                    //add the square in to the appropriate section
                     int Ssection = s.section;
                     Sections[Ssection].Add(s);
-                    Sections[9+x].Add(s);
-                    Sections[18+y].Add(s);
-
+                    Sections[9 + x].Add(s);
+                    Sections[18 + y].Add(s);
                 }
             }
         }
 
-       //when the SOLVE button is pressed
+
+        //when the SOLVE button is pressed
         public void Button_Click(object sender, RoutedEventArgs e)
         {
             int iterations = 0, maxIterations = 1000;
@@ -510,33 +570,42 @@ namespace Sudoku_Solver
             //gather initial solved squares
             foreach (Square square in grid)
             {
-                if(!square.tb.Text.Equals(""))
+                //grab the contents of the square's text box
+                string contents = square.tb.Text;
+
+                //if there is more than one character in the text box, do not read data from it
+                if (!contents.Equals("") && contents.Length == 1)
                 {
                     square.set = true;
                     square.final = int.Parse(square.tb.Text);
                     square.possibilities.Clear();
                     square.TrimPossibilities(grid);
+                    square.tb.FontSize = 32;
                 }
-               
+
             }
-            recheck:
+        recheck:
             updated = false;
             foreach (Section s in Sections)
             {
-                updated |= s.ScanForPairs(updated);
-                updated |= s.ScanForOnlySection(Sections, updated);
-                updated |= s.CheckForHiddenPairs(updated);
-                updated |= s.ScanForOnlyPlace(updated);
-                updated |= s.CheckForPointingPairs(Sections, updated);
+                updated |= s.ScanForPairs();
+                updated |= s.ScanForOnlySection(Sections);
+                updated |= s.CheckForHiddenPairs();
+                updated |= s.ScanForOnlyPlace();
+                updated |= s.CheckForPointingPairs(Sections);
+                updated |= s.ScanForObviousTriples();
+                
             }
 
+            updated |= ScanForXWing();
+            updated |= ScanForYWing();
 
             //fill squares and trim the squares they effect
             foreach (Square square in grid)
             {
-                if (square.possibilities.Count ==0 && !square.set)
+                if (square.possibilities.Count == 0 && !square.set)
                 {
-                   // MessageBox.Show("A square with no possible solutions has been detected.");
+                    // MessageBox.Show("A square with no possible solutions has been detected.");
                     square.tb.Background = Brushes.Red;
                 }
                 if (square.possibilities.Count == 1 && !square.set)
@@ -552,7 +621,7 @@ namespace Sudoku_Solver
 
 
             iterations++;
-            if(updated && iterations<maxIterations )
+            if (updated && iterations < maxIterations)
             {
                 goto recheck;
             }
@@ -566,7 +635,7 @@ namespace Sudoku_Solver
                         s.tb.FontSize = 8;
                         string temp = "";
 
-                        
+
                         foreach (int i in s.possibilities)
                         {
                             temp += i.ToString() + ",";
@@ -576,7 +645,7 @@ namespace Sudoku_Solver
                 }
 
                 MessageBox.Show("unable to continue");
-            }            
+            }
 
         }
 
@@ -585,10 +654,10 @@ namespace Sudoku_Solver
         {
             foreach (Square square in grid)
             {
-                if(!square.set)
+                if (!square.set)
                 {
                     square.tb.Text = "";
-                    square.tb.FontSize= 32;
+                    square.tb.FontSize = 32;
                 }
             }
 
@@ -597,7 +666,7 @@ namespace Sudoku_Solver
         //debug function to show which sections a text box is in
         private void DisplaySections_Click(object sender, RoutedEventArgs e)
         {
-            foreach(Square square in grid)
+            foreach (Square square in grid)
             {
                 square.tb.FontSize = 12;
                 string temp = "";
@@ -609,8 +678,145 @@ namespace Sudoku_Solver
             }
         }
 
-      
-    }
+        public bool ScanForXWing()
+        {
+            bool updated=false;
+            for (int number = 1; number <= 9; number++)
+            {
+                Dictionary<int, List<int>> rowMap = new();
 
- 
+                // Track columns where number appears per row
+                for (int row = 0; row < 9; row++)
+                {
+                    var cols = new List<int>();
+                    for (int col = 0; col < 9; col++)
+                    {
+                        if (!grid[row, col].set && grid[row, col].possibilities.Contains(number))
+                        {
+                            cols.Add(col);
+                        }
+                    }
+
+                    if (cols.Count == 2)
+                    {
+                        rowMap[row] = cols;
+                    }
+                }
+
+                // Look for matching column pairs across two rows
+                var rows = rowMap.Keys.ToList();
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    for (int j = i + 1; j < rows.Count; j++)
+                    {
+                        if (rowMap[rows[i]].SequenceEqual(rowMap[rows[j]]))
+                        {
+                            int col1 = rowMap[rows[i]][0];
+                            int col2 = rowMap[rows[i]][1];
+
+                            for (int row = 0; row < 9; row++)
+                            {
+                                if (row != rows[i] && row != rows[j])
+                                {
+                                    if (grid[row, col1].possibilities.Remove(number)) updated = true;
+                                    if (grid[row, col2].possibilities.Remove(number)) updated = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return updated;
+        }
+
+        bool ScanForYWing()
+        {
+            bool updated = false;
+
+            // Find all bivalue squares
+            var bivalueSquares = new List<Square>();
+            for (int row = 0; row < 9; row++)
+            {
+                for (int col = 0; col < 9; col++)
+                {
+                    var square = grid[row, col];
+                    if (!square.set && square.possibilities.Count == 2)
+                    {
+                        bivalueSquares.Add(square);
+                    }
+                }
+            }
+
+            foreach (var pivot in bivalueSquares)
+            {
+                var pivotCandidates = pivot.possibilities.ToList();
+                int a = pivotCandidates[0];
+                int b = pivotCandidates[1];
+
+                var pivotPeers = GetPeers(grid, pivot);
+
+                // Find Wing A: shares candidate 'a' and is bivalue with {a, c}
+                foreach (var wingA in pivotPeers)
+                {
+                    if (!wingA.set && wingA.possibilities.Count == 2 &&
+                        wingA.possibilities.Contains(a) && !wingA.possibilities.Contains(b))
+                    {
+                        int c = wingA.possibilities.First(x => x != a);
+
+                        // Find Wing B: shares candidate 'b' and is bivalue with {b, c}
+                        foreach (var wingB in pivotPeers)
+                        {
+                            if (wingB == wingA || wingB.set || wingB.possibilities.Count != 2)
+                                continue;
+
+                            if (wingB.possibilities.Contains(b) && wingB.possibilities.Contains(c) && !wingB.possibilities.Contains(a))
+                            {
+                                // WingA and WingB must see a common square (target)
+                                var commonPeers = GetPeers(grid, wingA).Intersect(GetPeers(grid, wingB));
+
+                                foreach (var target in commonPeers)
+                                {
+                                    if (!target.set && target.possibilities.Contains(c))
+                                    {
+                                        target.possibilities.Remove(c);
+                                        updated = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return updated;
+        }
+
+        HashSet<Square> GetPeers(Square[,] grid, Square square)
+        {
+            var peers = new HashSet<Square>();
+
+            for (int i = 0; i < 9; i++)
+            {
+                if (i != square.column) peers.Add(grid[square.row, i]);
+                if (i != square.row) peers.Add(grid[i, square.column]);
+            }
+
+            int boxStartRow = (square.row / 3) * 3;
+            int boxStartCol = (square.column / 3) * 3;
+
+            for (int r = boxStartRow; r < boxStartRow + 3; r++)
+            {
+                for (int c = boxStartCol; c < boxStartCol + 3; c++)
+                {
+                    if (r != square.row || c != square.column)
+                        peers.Add(grid[r, c]);
+                }
+            }
+
+            return peers;
+        }
+
+
+    }
 }
